@@ -1,0 +1,99 @@
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
+import { Observable, tap, catchError } from 'rxjs';
+import { throwError } from 'rxjs';
+
+interface AuthResponse {
+  token: string;
+  message: string;
+}
+
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  private http = inject(HttpClient);
+  private router = inject(Router);
+  private apiUrl = 'http://localhost:8080/api/v1/auth';
+  private backendBaseUrl = 'http://localhost:8080';
+
+  register(userData: any): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/signup`, userData).pipe(
+      tap((response: AuthResponse) => {
+        if (response.token && response.token.trim()) {
+          localStorage.setItem('token', response.token.trim());
+        }
+      }),
+      catchError((error: any) => {
+        return throwError(() => error);
+      })
+    );
+  }
+
+  login(credentials: any): Observable<string> {
+  return this.http.post(`${this.apiUrl}/login`, credentials, { responseType: 'text' }).pipe(
+    tap((token: string) => {
+      if (token && token.trim()) {
+        localStorage.setItem('token', token.trim());
+      }
+    }),
+    catchError((error: any) => {
+      return throwError(() => error);
+    })
+  );
+}
+
+  requestOtp(email: string): Observable<string> {
+    return this.http.post(`${this.apiUrl}/forgot-password/request-otp`, { email }, { responseType: 'text' }).pipe(
+      catchError((error: any) => {
+        return throwError(() => error);
+      })
+    );
+  }
+
+  verifyOtp(email: string, otp: string): Observable<string> {
+    return this.http.post(`${this.apiUrl}/forgot-password/verify-otp`, { email, otp }, { responseType: 'text' }).pipe(
+      catchError((error: any) => {
+        return throwError(() => error);
+      })
+    );
+  }
+
+  resetPassword(payload: {
+    email: string;
+    otp: string;
+    newPassword: string;
+    confirmPassword: string;
+  }): Observable<string> {
+    return this.http.post(`${this.apiUrl}/forgot-password/reset`, payload, { responseType: 'text' }).pipe(
+      catchError((error: any) => {
+        return throwError(() => error);
+      })
+    );
+  }
+ 
+  loginWithGoogle(): void {
+      localStorage.removeItem('token');
+  localStorage.removeItem('email');
+
+    window.location.href = `${this.backendBaseUrl}/oauth2/authorization/google`;
+  }
+
+  handleGoogleToken(token: string): void {
+    localStorage.setItem('token', token);
+  }
+
+  logout() {
+    localStorage.removeItem('token');
+      localStorage.removeItem('email');
+
+    this.router.navigate(['/auth']);
+  }
+
+  isLoggedIn(): boolean {
+    return !!localStorage.getItem('token');
+  }
+
+  getToken() {
+    return localStorage.getItem('token');
+  }
+}
